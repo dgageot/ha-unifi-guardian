@@ -243,3 +243,71 @@ async def test_remaining_forms_serialize_for_browser(hass):
         payload = FlowManagerIndexView(None)._prepare_result_json(result)
         json.dumps(payload)
         assert payload["data_schema"]
+
+
+async def test_target_login_failure_reports_stage_without_secrets(hass, caplog):
+    from aiounifi.errors import RequestError
+
+    flow = make_flow(hass)
+    flow._clients = {MAC: Client(MAC, "192.0.2.10")}
+
+    @asynccontextmanager
+    async def broken_connection(hass, data):
+        raise RequestError("secret controller response")
+        yield
+
+    with patch(
+        "custom_components.unifi_guardian.config_flow.connection", broken_connection
+    ):
+        result = await flow.async_step_target({"client": MAC})
+    assert result["errors"]["base"] == "target_connection_failed"
+    assert (
+        "UniFi login (RequestError)" in result["description_placeholders"]["diagnostic"]
+    )
+    assert "secret controller response" not in caplog.text
+    assert "secret controller response" not in str(result)
+
+
+async def test_target_recheck_failure_is_not_a_discovery_error(hass):
+    flow = make_flow(hass)
+    client = Client(MAC, "192.0.2.10")
+    flow._clients = {MAC: client}
+    api = SimpleNamespace(active=AsyncMock(side_effect=[{MAC: client}, TimeoutError()]))
+    with (
+        patch(
+            "custom_components.unifi_guardian.config_flow.connection",
+            api_connection(api),
+        ),
+        patch(
+            "custom_components.unifi_guardian.config_flow.probe",
+            AsyncMock(return_value={UUID}),
+        ),
+    ):
+        result = await flow.async_step_target({"client": MAC})
+    assert result["errors"]["base"] == "target_connection_failed"
+    assert "UniFi client recheck" in result["description_placeholders"]["diagnostic"]
+
+
+async def test_target_invalid_ip_has_specific_error(hass):
+    flow = make_flow(hass)
+    client = Client(MAC, "not-an-ip")
+    flow._clients = {MAC: client}
+    api = SimpleNamespace(active=AsyncMock(return_value={MAC: client}))
+    with patch(
+        "custom_components.unifi_guardian.config_flow.connection", api_connection(api)
+    ):
+        result = await flow.async_step_target({"client": MAC})
+    assert result["errors"]["base"] == "invalid_client_address"
+
+
+async def test_target_rate_limit_has_specific_error(hass):
+    from aiounifi.errors import AuthenticationRateLimitError
+
+    flow = make_flow(hass)
+    flow._clients = {MAC: Client(MAC, "192.0.2.10")}
+    api = SimpleNamespace(active=AsyncMock(side_effect=AuthenticationRateLimitError()))
+    with patch(
+        "custom_components.unifi_guardian.config_flow.connection", api_connection(api)
+    ):
+        result = await flow.async_step_target({"client": MAC})
+    assert result["errors"]["base"] == "rate_limited"

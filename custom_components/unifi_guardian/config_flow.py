@@ -1,11 +1,13 @@
 """UI-only enrollment, credential updates and reauthentication."""
 
-from ipaddress import ip_address
+import logging
+from ipaddress import IPv4Address
 
 import voluptuous as vol
 from aiohttp import ClientError
 from aiounifi.errors import (
     AiounifiException,
+    AuthenticationRateLimitError,
     Forbidden,
     LoginRequired,
     NoPermission,
@@ -18,6 +20,8 @@ from homeassistant.helpers import selector
 from .connection import connection
 from .const import DOMAIN
 from .discovery import probe
+
+LOGGER = logging.getLogger(__name__)
 
 AUTH_ERRORS = (Unauthorized, LoginRequired, Forbidden, NoPermission, TwoFaTokenRequired)
 CONNECT_ERRORS = (AiounifiException, ClientError, TimeoutError, OSError)
@@ -39,6 +43,7 @@ class GuardianConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
         self._clients = {}
         self._uuids = []
         self._selected = None
+        self._target_diagnostic = ""
 
     async def async_step_user(self, user_input=None):
         errors = {}
@@ -120,16 +125,21 @@ class GuardianConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
     async def async_step_target(self, user_input=None):
         errors = {}
         if user_input is not None:
+            self._target_diagnostic = ""
             selected = self._clients[user_input["client"]]
+            stage = "UniFi login"
             try:
-                # Avoid enrolling a stale DHCP mapping.
                 async with connection(self.hass, self._data) as api:
+                    stage = "UniFi client lookup"
                     active = await api.active()
                     current = active.get(selected.mac)
                     if not current or current.ip != selected.ip or current.wired:
                         return self.async_abort(reason="client_changed")
-                    ip_address(current.ip)
+                    stage = "PC IPv4 address validation"
+                    IPv4Address(current.ip)
+                    stage = "Windows discovery probe"
                     self._uuids = sorted(await probe(current.ip))
+                    stage = "UniFi client recheck"
                     fresh = await api.active()
                     if (
                         fresh.get(current.mac) != current
@@ -140,13 +150,22 @@ class GuardianConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
                     self._selected = current
                     return await self.async_step_confirm()
                 errors["base"] = "discovery_failed"
-            except AUTH_ERRORS:
+            except AuthenticationRateLimitError as err:
+                errors["base"] = "rate_limited"
+                self._record_target_error(stage, err)
+            except AUTH_ERRORS as err:
                 errors["base"] = "invalid_auth"
-            except (*CONNECT_ERRORS, ValueError):
-                errors["base"] = "cannot_connect"
+                self._record_target_error(stage, err)
+            except ValueError as err:
+                errors["base"] = "invalid_client_address"
+                self._record_target_error(stage, err)
+            except CONNECT_ERRORS as err:
+                errors["base"] = "target_connection_failed"
+                self._record_target_error(stage, err)
         return self.async_show_form(
             step_id="target",
             errors=errors,
+            description_placeholders={"diagnostic": self._target_diagnostic},
             data_schema=vol.Schema(
                 {
                     vol.Required("client"): vol.In(
@@ -158,6 +177,11 @@ class GuardianConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
                 }
             ),
         )
+
+    def _record_target_error(self, stage, err):
+        # Exception messages can contain controller responses or credentials.
+        self._target_diagnostic = f"Failed at: {stage} ({type(err).__name__})."
+        LOGGER.warning("PC enrollment: %s", self._target_diagnostic)
 
     async def async_step_confirm(self, user_input=None):
         if user_input is not None:

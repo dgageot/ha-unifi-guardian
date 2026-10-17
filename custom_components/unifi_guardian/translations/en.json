@@ -21,7 +21,7 @@
       },
       "target": {
         "title": "Choose the PC",
-        "description": "The PC must be awake and expose Windows discovery to Home Assistant. This step only reads network data.",
+        "description": "The PC must be awake and expose Windows discovery to Home Assistant. This step only reads network data.\n\n{diagnostic}",
         "data": {
           "client": "Wi-Fi client"
         }
@@ -41,7 +41,10 @@
       "no_permission": "No manageable site found. Grant this local account Network management access.",
       "no_clients": "No active, unblocked Wi-Fi clients found. Wake the PC and retry.",
       "discovery_failed": "No discovery UUID received. Check the PC is awake and UDP 3702 is reachable from Home Assistant.",
-      "invalid_host": "Enter a hostname or IPv4 address without https://, a port, or a path."
+      "invalid_host": "Enter a hostname or IPv4 address without https://, a port, or a path.",
+      "rate_limited": "UniFi temporarily rate-limited logins. Wait a few minutes before retrying; avoid repeated submissions.",
+      "invalid_client_address": "UniFi did not report a usable IPv4 address for this PC. Check that it is connected and has an IPv4 address.",
+      "target_connection_failed": "The enrollment check failed. See the operation and error type above; this does not necessarily mean the console address is wrong."
     },
     "abort": {
       "already_configured": "This PC is already configured.",

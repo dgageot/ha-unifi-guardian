@@ -1,7 +1,7 @@
 {
   "domain": "unifi_guardian",
   "name": "UniFi Guardian",
-  "version": "0.1.1",
+  "version": "0.1.2",
   "config_flow": true,
   "documentation": "https://github.com/dgageot/ha-unifi-guardian",
   "codeowners": [
