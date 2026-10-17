@@ -1,0 +1,6 @@
+homeassistant==2026.10.1
+aiounifi==97
+defusedxml==0.7.1
+pytest==9.1.1
+pytest-asyncio==1.4.0
+ruff==0.17.0

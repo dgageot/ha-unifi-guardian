@@ -1,0 +1,17 @@
+{
+  "domain": "unifi_guardian",
+  "name": "UniFi Guardian",
+  "version": "0.1.0",
+  "config_flow": true,
+  "documentation": "https://github.com/dgageot/ha-unifi-guardian",
+  "codeowners": [
+    "@dgageot"
+  ],
+  "integration_type": "hub",
+  "iot_class": "local_polling",
+  "requirements": [
+    "aiounifi==97",
+    "defusedxml==0.7.1"
+  ],
+  "issue_tracker": "https://github.com/dgageot/ha-unifi-guardian/issues"
+}

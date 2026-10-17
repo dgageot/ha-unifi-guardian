@@ -1,0 +1,52 @@
+{
+  "title": "UniFi Guardian",
+  "config": {
+    "step": {
+      "user": {
+        "title": "Connect to UniFi",
+        "description": "Use a local account with Network management permission. Credentials stay in Home Assistant. TLS verification should stay enabled unless your trusted console uses a self-signed certificate.",
+        "data": {
+          "host": "Console host (no https://)",
+          "port": "HTTPS port",
+          "username": "Local username",
+          "password": "Password",
+          "verify_ssl": "Verify TLS certificate"
+        }
+      },
+      "site": {
+        "title": "Select site",
+        "data": {
+          "site": "UniFi site"
+        }
+      },
+      "target": {
+        "title": "Choose the PC",
+        "description": "The PC must be awake and expose Windows discovery to Home Assistant. This step only reads network data.",
+        "data": {
+          "client": "Wi-Fi client"
+        }
+      },
+      "confirm": {
+        "title": "Confirm discovery identity",
+        "description": "No blocking is enabled during setup. This UUID is unauthenticated and may change or disappear. Verify recognition after a MAC change before relying on automation. Block PC ON requests blocking; Enforcement reports controller confirmation. Turn it OFF and verify release before removing this integration.",
+        "data": {
+          "name": "PC display name",
+          "uuid": "Discovered UUID"
+        }
+      }
+    },
+    "error": {
+      "invalid_auth": "Login rejected. Use a local UniFi account with Network management access.",
+      "cannot_connect": "Cannot connect. Check host, port, certificate verification and network access.",
+      "no_permission": "No manageable site found. Grant this local account Network management access.",
+      "no_clients": "No active, unblocked Wi-Fi clients found. Wake the PC and retry.",
+      "discovery_failed": "No discovery UUID received. Check the PC is awake and UDP 3702 is reachable from Home Assistant."
+    },
+    "abort": {
+      "already_configured": "This PC is already configured.",
+      "client_changed": "The client mapping changed. Start setup again.",
+      "reauth_successful": "Credentials updated.",
+      "reconfigure_successful": "Connection settings updated."
+    }
+  }
+}
