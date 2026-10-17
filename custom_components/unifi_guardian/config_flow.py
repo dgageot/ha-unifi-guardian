@@ -43,8 +43,9 @@ class GuardianConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
     async def async_step_user(self, user_input=None):
         errors = {}
         if user_input is not None:
-            self._data.update(user_input)
             try:
+                user_input = {**user_input, "host": host(user_input["host"])}
+                self._data.update(user_input)
                 async with connection(self.hass, self._data) as api:
                     sites = await api.sites()
                 self._sites = {
@@ -68,13 +69,15 @@ class GuardianConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
                         )
                 else:
                     return await self.async_step_site()
+            except vol.Invalid:
+                errors["host"] = "invalid_host"
             except AUTH_ERRORS:
                 errors["base"] = "invalid_auth"
             except CONNECT_ERRORS:
                 errors["base"] = "cannot_connect"
         schema = vol.Schema(
             {
-                vol.Required("host", default=self._data.get("host", "")): host,
+                vol.Required("host", default=self._data.get("host", "")): str,
                 vol.Required("port", default=self._data.get("port", 443)): vol.All(
                     vol.Coerce(int), vol.Range(min=1, max=65535)
                 ),

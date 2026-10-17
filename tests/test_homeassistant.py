@@ -187,3 +187,59 @@ async def test_load_restores_requested_state_and_owned_macs(hass):
     assert hub.engine.state.requested
     assert hub.engine.state.owned == [MAC]
     await hub.async_shutdown()
+
+
+async def test_initial_form_serializes_for_browser(hass):
+    import json
+
+    from homeassistant.helpers.data_entry_flow import FlowManagerIndexView
+
+    flow = make_flow(hass)
+    result = await flow.async_step_user()
+    payload = FlowManagerIndexView(None)._prepare_result_json(result)
+    json.dumps(payload)
+    assert {field["name"] for field in payload["data_schema"]} == {
+        "host",
+        "port",
+        "username",
+        "password",
+        "verify_ssl",
+    }
+
+
+async def test_invalid_host_shows_field_error_without_connecting(hass):
+    flow = make_flow(hass)
+    with patch("custom_components.unifi_guardian.config_flow.connection") as connect:
+        result = await flow.async_step_user({**DATA, "host": "https://unifi:443/"})
+    assert result["errors"] == {"host": "invalid_host"}
+    connect.assert_not_called()
+
+
+async def test_host_is_normalized_before_connecting(hass):
+    flow = make_flow(hass)
+    api = SimpleNamespace(
+        sites=AsyncMock(return_value=[{"name": "default", "role": "admin"}])
+    )
+    with patch(
+        "custom_components.unifi_guardian.config_flow.connection", api_connection(api)
+    ):
+        result = await flow.async_step_user({**DATA, "host": " UNIFI "})
+    assert result["step_id"] == "site"
+    assert flow._data["host"] == "unifi"
+
+
+async def test_remaining_forms_serialize_for_browser(hass):
+    import json
+
+    from homeassistant.helpers.data_entry_flow import FlowManagerIndexView
+
+    flow = make_flow(hass)
+    flow._sites = {"default": "Home"}
+    flow._selected = Client(MAC, "192.0.2.10", "TEST-PC")
+    flow._clients = {MAC: flow._selected}
+    flow._uuids = [UUID]
+    for step in (flow.async_step_site, flow.async_step_target, flow.async_step_confirm):
+        result = await step()
+        payload = FlowManagerIndexView(None)._prepare_result_json(result)
+        json.dumps(payload)
+        assert payload["data_schema"]

@@ -40,7 +40,8 @@
       "cannot_connect": "Cannot connect. Check host, port, certificate verification and network access.",
       "no_permission": "No manageable site found. Grant this local account Network management access.",
       "no_clients": "No active, unblocked Wi-Fi clients found. Wake the PC and retry.",
-      "discovery_failed": "No discovery UUID received. Check the PC is awake and UDP 3702 is reachable from Home Assistant."
+      "discovery_failed": "No discovery UUID received. Check the PC is awake and UDP 3702 is reachable from Home Assistant.",
+      "invalid_host": "Enter a hostname or IPv4 address without https://, a port, or a path."
     },
     "abort": {
       "already_configured": "This PC is already configured.",
